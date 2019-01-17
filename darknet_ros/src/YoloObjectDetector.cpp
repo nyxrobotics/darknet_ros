@@ -122,8 +122,7 @@ void YoloObjectDetector::init()
   }
 
   // Load network.
-  setupNetwork(cfg, weights, data, thresh, detectionNames, numClasses_,
-                0, 0, 1, 0.5, 0, 0, 0, 0);
+  setupNetwork(cfg, weights, data, thresh, detectionNames, numClasses_, 0, 0, 1, 0.5, 0, 0, 0, 0);
   yoloThread_ = std::thread(&YoloObjectDetector::yolo, this);
 
   // Initialize publisher and subscriber.
@@ -167,8 +166,9 @@ void YoloObjectDetector::init()
                                                                        detectionImageLatch);
 
   // Action servers.
-  std::string checkForObjectsActionName;
-  nodeHandle_.param("actions/camera_reading/topic", checkForObjectsActionName,
+
+ std::string checkForObjectsActionName;
+ nodeHandle_.param("actions/camera_reading/topic", checkForObjectsActionName,
                     std::string("check_for_objects"));
   checkForObjectsActionServer_.reset(
       new CheckForObjectsActionServer(nodeHandle_, checkForObjectsActionName, false));
@@ -182,6 +182,7 @@ void YoloObjectDetector::init()
 void YoloObjectDetector::cameraCallback(const sensor_msgs::ImageConstPtr& msg)
 {
   ROS_DEBUG("[YoloObjectDetector] USB image received.");
+  wait_flag_ = true;
 
   cv_bridge::CvImagePtr cam_image;
 
@@ -515,44 +516,51 @@ void YoloObjectDetector::yolo()
   buffLetter_[2] = letterbox_image(buff_[0], net_->w, net_->h);
   ipl_ = cvCreateImage(cvSize(buff_[0].w, buff_[0].h), IPL_DEPTH_8U, buff_[0].c);
 
-  int count = 0;
+	int count = 0;
 
-  if (!demoPrefix_ && viewImage_) {
-    cvNamedWindow("YOLO V3", CV_WINDOW_NORMAL);
-    if (fullScreen_) {
-      cvSetWindowProperty("YOLO V3", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
-    } else {
-      cvMoveWindow("YOLO V3", 0, 0);
-      cvResizeWindow("YOLO V3", 640, 480);
-    }
-  }
+	if (!demoPrefix_ && viewImage_) {
+		cvNamedWindow("YOLO V3", CV_WINDOW_NORMAL);
+		if (fullScreen_) {
+			cvSetWindowProperty("YOLO V3", CV_WND_PROP_FULLSCREEN,
+					CV_WINDOW_FULLSCREEN);
+		} else {
+			cvMoveWindow("YOLO V3", 0, 0);
+			cvResizeWindow("YOLO V3", 640, 480);
+		}
+	}
 
-  demoTime_ = what_time_is_it_now();
+	demoTime_ = what_time_is_it_now();
 
-  while (!demoDone_) {
-    buffIndex_ = (buffIndex_ + 1) % 3;
-    fetch_thread = std::thread(&YoloObjectDetector::fetchInThread, this);
-    detect_thread = std::thread(&YoloObjectDetector::detectInThread, this);
-    if (!demoPrefix_) {
-      fps_ = 1./(what_time_is_it_now() - demoTime_);
-      demoTime_ = what_time_is_it_now();
-      if (viewImage_) {
-        displayInThread(0);
-      }
-      publishInThread();
-    } else {
-      char name[256];
-      sprintf(name, "%s_%08d", demoPrefix_, count);
-      save_image(buff_[(buffIndex_ + 1) % 3], name);
-    }
-    fetch_thread.join();
-    detect_thread.join();
-    ++count;
-    if (!isNodeRunning()) {
-      demoDone_ = true;
-    }
-  }
+	while (!demoDone_) {
+		if (wait_flag_) {
+			wait_flag_ = false;
+			buffIndex_ = (buffIndex_ + 1) % 3;
+			fetch_thread = std::thread(&YoloObjectDetector::fetchInThread, this);
+			detect_thread = std::thread(&YoloObjectDetector::detectInThread, this);
+			if (!demoPrefix_) {
+				fps_ = 1. / (what_time_is_it_now() - demoTime_);
+				demoTime_ = what_time_is_it_now();
+				if (viewImage_) {
+					displayInThread(0);
+				}
+				publishInThread();
+			} else {
+				char name[256];
+				sprintf(name, "%s_%08d", demoPrefix_, count);
+				save_image(buff_[(buffIndex_ + 1) % 3], name);
+			}
+			fetch_thread.join();
+			detect_thread.join();
+			++count;
 
+		} else {
+			usleep(100);
+		}
+
+		if (!isNodeRunning()) {
+			demoDone_ = true;
+		}
+	}
 }
 
 IplImageWithHeader_ YoloObjectDetector::getIplImageWithHeader()
