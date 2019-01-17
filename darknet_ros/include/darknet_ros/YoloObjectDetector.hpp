@@ -201,6 +201,9 @@ class YoloObjectDetector
   int fullScreen_;
   char *demoPrefix_;
 
+  //付け足した
+  bool wait_flag_ = true;
+
   std_msgs::Header imageHeader_;
   cv::Mat camImageCopy_;
   boost::shared_mutex mutexImageCallback_;
