@@ -1,0 +1,11 @@
+yolo_model:
+
+  config_file:
+    name: wrs_test.cfg
+  weight_file:
+    name: wrs_train_100.weights
+  threshold:
+    value: 0.5
+  detection_classes:
+    names:
+      - coke
