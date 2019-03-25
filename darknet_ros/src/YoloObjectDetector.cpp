@@ -327,26 +327,19 @@ detection *YoloObjectDetector::avgPredictions(network *net, int *nboxes)
 
 void *YoloObjectDetector::detectInThread()
 {
-  ROS_INFO("6.0");
   running_ = 1;
   float nms = .4;
 
   layer l = net_->layers[net_->n - 1];
   float *X = buffLetter_[(buffIndex_ + 2) % 3].data;
-  ROS_INFO("6.0.1");
   float *prediction = network_predict(net_, X);
-  ROS_INFO("6.0.2");
 
   rememberNetwork(net_);
-  ROS_INFO("6.0.3");
   detection *dets = 0;
   int nboxes = 0;
-  ROS_INFO("6.1");
   dets = avgPredictions(net_, &nboxes);
-  ROS_INFO("6.2");
 
   if (nms > 0) do_nms_obj(dets, nboxes, l.classes, nms);
-  ROS_INFO("6.3");
 
   if (enableConsoleOutput_) {
     printf("\033[2J");
@@ -409,7 +402,6 @@ void *YoloObjectDetector::detectInThread()
   free_detections(dets, nboxes);
   demoIndex_ = (demoIndex_ + 1) % demoFrame_;
   running_ = 0;
-  ROS_INFO("End");
   return 0;
 }
 
@@ -541,33 +533,25 @@ void YoloObjectDetector::yolo()
 
 	while (!demoDone_) {
 		if (wait_flag_) {
-      ROS_INFO("start");
 			wait_flag_ = false;
 			buffIndex_ = (buffIndex_ + 1) % 3;
 			fetch_thread = std::thread(&YoloObjectDetector::fetchInThread, this);
-      ROS_INFO("1");
 			detect_thread = std::thread(&YoloObjectDetector::detectInThread, this);
-      ROS_INFO("2");
 			if (!demoPrefix_) {
 				fps_ = 1. / (what_time_is_it_now() - demoTime_);
 				demoTime_ = what_time_is_it_now();
 				if (viewImage_) {
 					displayInThread(0);
 				}
-        ROS_INFO("3");
 				publishInThread();
-        ROS_INFO("4");
 			} else {
 				char name[256];
 				sprintf(name, "%s_%08d", demoPrefix_, count);
 				save_image(buff_[(buffIndex_ + 1) % 3], name);
-        ROS_INFO("5");
 			}
 			fetch_thread.join();
-      ROS_INFO("6");
 			detect_thread.join();
 			++count;
-      ROS_INFO("end");
 		} else {
 			usleep(100);
 		}
